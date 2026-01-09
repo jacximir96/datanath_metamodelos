@@ -78,6 +78,26 @@ public class CosmosDbMetadataService : IDatabaseMetadataService
         return new List<RelationInfo>();
     }
 
+    public async Task<List<string>> GetDistinctValuesAsync(DatabaseConnectionInfo connection, string tableName, string fieldName)
+    {
+        var client = CreateCosmosClient(connection);
+        var database = client.GetDatabase(connection.Repository);
+        var container = database.GetContainer(tableName);
+
+        var query = new QueryDefinition($"SELECT DISTINCT VALUE c.{fieldName} FROM c WHERE IS_DEFINED(c.{fieldName})");
+        var iterator = container.GetItemQueryIterator<string>(query);
+
+        var values = new List<string>();
+
+        while (iterator.HasMoreResults)
+        {
+            var response = await iterator.ReadNextAsync();
+            values.AddRange(response);
+        }
+
+        return values.Distinct().OrderBy(v => v).ToList();
+    }
+
     private CosmosClient CreateCosmosClient(DatabaseConnectionInfo connection)
     {
         // connection.Servidor contiene el endpoint

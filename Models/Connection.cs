@@ -7,6 +7,9 @@ public class Connection
     [JsonProperty("id")]
     public string Id { get; set; } = string.Empty;
 
+    [JsonProperty("clientId")]
+    public string ClientId { get; set; } = string.Empty;
+
     [JsonProperty("clientName")]
     public string ClientName { get; set; } = string.Empty;
 

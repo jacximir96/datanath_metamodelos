@@ -16,6 +16,7 @@ public class DatabaseMetadataServiceFactory
             "mongodb" => new MongoDbMetadataService(),
             "mongo" => new MongoDbMetadataService(),
             "mongolocal" => new MongoDbMetadataService(),
+            "mongosrv" => new MongoDbMetadataService(),
 
             "cosmosdb" => new CosmosDbMetadataService(),
             "cosmos" => new CosmosDbMetadataService(),
@@ -25,7 +26,7 @@ public class DatabaseMetadataServiceFactory
             "pgsql" => new PostgreSqlMetadataService(),
 
             _ => throw new NotSupportedException($"El adaptador '{adapter}' no está soportado. " +
-                $"Adaptadores soportados: SqlServer, MongoDB, CosmosDB, PostgreSQL")
+                $"Adaptadores soportados: SqlServer, MongoDB, MongoSrv (Atlas), CosmosDB, PostgreSQL")
         };
     }
 }

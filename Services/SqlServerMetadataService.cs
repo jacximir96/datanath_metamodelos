@@ -140,6 +140,31 @@ public class SqlServerMetadataService : IDatabaseMetadataService
         return relations;
     }
 
+    public async Task<List<string>> GetDistinctValuesAsync(DatabaseConnectionInfo connection, string tableName, string fieldName)
+    {
+        var values = new List<string>();
+        var connectionString = BuildConnectionString(connection);
+
+        using var sqlConnection = new SqlConnection(connectionString);
+        await sqlConnection.OpenAsync();
+
+        var query = $@"
+            SELECT DISTINCT [{fieldName}]
+            FROM [{tableName}]
+            WHERE [{fieldName}] IS NOT NULL
+            ORDER BY [{fieldName}]";
+
+        using var command = new SqlCommand(query, sqlConnection);
+        using var reader = await command.ExecuteReaderAsync();
+
+        while (await reader.ReadAsync())
+        {
+            values.Add(reader.GetValue(0)?.ToString() ?? "");
+        }
+
+        return values;
+    }
+
     private string BuildConnectionString(DatabaseConnectionInfo connection)
     {
         return $"Server={connection.Servidor},{connection.Puerto};" +

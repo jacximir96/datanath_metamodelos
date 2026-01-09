@@ -152,6 +152,31 @@ public class PostgreSqlMetadataService : IDatabaseMetadataService
         return relations;
     }
 
+    public async Task<List<string>> GetDistinctValuesAsync(DatabaseConnectionInfo connection, string tableName, string fieldName)
+    {
+        var values = new List<string>();
+        var connectionString = BuildConnectionString(connection);
+
+        using var conn = new NpgsqlConnection(connectionString);
+        await conn.OpenAsync();
+
+        var query = $@"
+            SELECT DISTINCT ""{fieldName}""
+            FROM ""{tableName}""
+            WHERE ""{fieldName}"" IS NOT NULL
+            ORDER BY ""{fieldName}""";
+
+        using var command = new NpgsqlCommand(query, conn);
+        using var reader = await command.ExecuteReaderAsync();
+
+        while (await reader.ReadAsync())
+        {
+            values.Add(reader.GetValue(0)?.ToString() ?? "");
+        }
+
+        return values;
+    }
+
     private string BuildConnectionString(DatabaseConnectionInfo connection)
     {
         return $"Host={connection.Servidor};" +

@@ -18,4 +18,9 @@ public interface IDatabaseMetadataService
     /// Obtiene las relaciones (foreign keys) de una tabla específica
     /// </summary>
     Task<List<RelationInfo>> GetTableRelationsAsync(DatabaseConnectionInfo connection, string tableName);
+
+    /// <summary>
+    /// Obtiene los valores distintos de un campo específico en una tabla/colección
+    /// </summary>
+    Task<List<string>> GetDistinctValuesAsync(DatabaseConnectionInfo connection, string tableName, string fieldName);
 }

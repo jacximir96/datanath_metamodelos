@@ -102,11 +102,38 @@ public class MongoDbMetadataService : IDatabaseMetadataService
         return new List<RelationInfo>();
     }
 
+    public async Task<List<string>> GetDistinctValuesAsync(DatabaseConnectionInfo connection, string tableName, string fieldName)
+    {
+        var client = CreateMongoClient(connection);
+        var database = client.GetDatabase(connection.Repository);
+        var collection = database.GetCollection<BsonDocument>(tableName);
+
+        var distinctValues = await collection.Distinct<string>(fieldName, FilterDefinition<BsonDocument>.Empty).ToListAsync();
+        return distinctValues.OrderBy(v => v).ToList();
+    }
+
     private MongoClient CreateMongoClient(DatabaseConnectionInfo connection)
     {
-        var connectionString = string.IsNullOrEmpty(connection.User)
-            ? $"mongodb://{connection.Servidor}:{connection.Puerto}"
-            : $"mongodb://{connection.User}:{connection.Password}@{connection.Servidor}:{connection.Puerto}";
+        // Detectar si es MongoDB Atlas (usa mongodb+srv:// sin puerto)
+        var isAtlas = connection.Servidor.Contains("mongodb.net", StringComparison.OrdinalIgnoreCase);
+
+        string connectionString;
+
+        if (isAtlas)
+        {
+            // MongoDB Atlas usa mongodb+srv:// sin puerto
+            connectionString = string.IsNullOrEmpty(connection.User)
+                ? $"mongodb+srv://{connection.Servidor}"
+                : $"mongodb+srv://{connection.User}:{connection.Password}@{connection.Servidor}/?retryWrites=true&w=majority";
+        }
+        else
+        {
+            // MongoDB local/on-premise usa mongodb:// con puerto
+            var puerto = string.IsNullOrEmpty(connection.Puerto) ? "27017" : connection.Puerto;
+            connectionString = string.IsNullOrEmpty(connection.User)
+                ? $"mongodb://{connection.Servidor}:{puerto}"
+                : $"mongodb://{connection.User}:{connection.Password}@{connection.Servidor}:{puerto}";
+        }
 
         return new MongoClient(connectionString);
     }

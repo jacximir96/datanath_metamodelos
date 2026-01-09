@@ -10,12 +10,19 @@ public class Query
     [Authorize]
     [GraphQLName("getConnections")]
     public async Task<ConnectionsResponse> GetConnections(
+        string? clientId = null,
         string? clientName = null,
         int skip = 0,
         int take = 10,
         [Service] IConnectionRepository repository = null!)
     {
         var connections = await repository.GetAllConnectionsAsync();
+
+        // Aplicar filtro por clientId (búsqueda exacta, case-insensitive)
+        if (!string.IsNullOrEmpty(clientId))
+        {
+            connections = connections.Where(c => c.ClientId.Equals(clientId, StringComparison.OrdinalIgnoreCase));
+        }
 
         // Aplicar filtro por clientName (búsqueda exacta, case-insensitive)
         if (!string.IsNullOrEmpty(clientName))
@@ -170,6 +177,18 @@ public class Query
     {
         var metadataService = factory.CreateService(connection.Adapter);
         return await metadataService.GetTableRelationsAsync(connection, tableName);
+    }
+
+    [Authorize]
+    [GraphQLName("getDistinctValues")]
+    public async Task<List<string>> GetDistinctValues(
+        DatabaseConnectionInfo connection,
+        string collectionName,
+        string fieldName,
+        [Service] DatabaseMetadataServiceFactory factory)
+    {
+        var metadataService = factory.CreateService(connection.Adapter);
+        return await metadataService.GetDistinctValuesAsync(connection, collectionName, fieldName);
     }
 
     // ═══════════════════════════════════════════════════════════════

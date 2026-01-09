@@ -1,0 +1,12 @@
+
+    [Authorize]
+    [GraphQLName("getDistinctValues")]
+    public async Task<List<string>> GetDistinctValues(
+        DatabaseConnectionInfo connection,
+        string collectionName,
+        string fieldName,
+        [Service] DatabaseMetadataServiceFactory factory)
+    {
+        var metadataService = factory.CreateService(connection.Adapter);
+        return await metadataService.GetDistinctValuesAsync(connection, collectionName, fieldName);
+    }
