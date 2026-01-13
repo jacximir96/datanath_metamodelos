@@ -229,6 +229,58 @@ public class Query
     {
         return await repository.GetPersistentRequirementByIdAsync(id);
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // QUERIES DE SAVED CONFIGURATIONS
+    // ═══════════════════════════════════════════════════════════════
+
+    [Authorize]
+    [GraphQLName("getSavedConfigurations")]
+    public async Task<List<SavedConfiguration>> GetSavedConfigurations(
+        [Service] ISavedConfigurationRepository repository)
+    {
+        return await repository.GetAllAsync();
+    }
+
+    [Authorize]
+    [GraphQLName("getSavedConfigurationById")]
+    public async Task<SavedConfiguration?> GetSavedConfigurationById(
+        string id,
+        [Service] ISavedConfigurationRepository repository)
+    {
+        return await repository.GetByIdAsync(id);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // QUERIES DE CLIENT CONFIG
+    // ═══════════════════════════════════════════════════════════════
+
+    [Authorize]
+    [GraphQLName("getClientConfigs")]
+    public async Task<List<ClientConfig>> GetClientConfigs(
+        [Service] IClientConfigRepository repository)
+    {
+        var result = await repository.GetAllClientConfigsAsync();
+        return result.ToList();
+    }
+
+    [Authorize]
+    [GraphQLName("getClientConfigById")]
+    public async Task<ClientConfig?> GetClientConfigById(
+        string id,
+        [Service] IClientConfigRepository repository)
+    {
+        return await repository.GetClientConfigByIdAsync(id);
+    }
+
+    [Authorize]
+    [GraphQLName("getClientConfigByName")]
+    public async Task<ClientConfig?> GetClientConfigByName(
+        string name,
+        [Service] IClientConfigRepository repository)
+    {
+        return await repository.GetClientConfigByNameAsync(name);
+    }
 }
 
 public class ConnectionsResponse

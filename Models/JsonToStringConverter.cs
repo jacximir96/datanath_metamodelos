@@ -1,52 +1,36 @@
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace DataNath.ApiMetadatos.Models;
 
-public class JsonToStringConverter : JsonConverter
+public class JsonToStringConverter : JsonConverter<string>
 {
-    public override bool CanConvert(Type objectType)
+    public override string? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        return objectType == typeof(string);
-    }
-
-    public override object? ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
-    {
-        if (reader.TokenType == JsonToken.Null)
+        if (reader.TokenType == JsonTokenType.Null)
         {
             return string.Empty;
         }
 
-        if (reader.TokenType == JsonToken.String)
+        if (reader.TokenType == JsonTokenType.String)
         {
-            return reader.Value?.ToString() ?? string.Empty;
+            return reader.GetString() ?? string.Empty;
         }
 
         // Si es un array o un objeto, lo convertimos a string JSON
-        var token = JToken.Load(reader);
-        return token.ToString(Formatting.None);
+        using var jsonDoc = JsonDocument.ParseValue(ref reader);
+        return jsonDoc.RootElement.GetRawText();
     }
 
-    public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
+    public override void Write(Utf8JsonWriter writer, string? value, JsonSerializerOptions options)
     {
-        if (value == null || string.IsNullOrEmpty(value.ToString()))
+        if (string.IsNullOrEmpty(value))
         {
-            writer.WriteNull();
+            writer.WriteNullValue();
             return;
         }
 
-        var stringValue = value.ToString();
-
-        // Intentar parsear como JSON para escribirlo correctamente
-        try
-        {
-            var token = JToken.Parse(stringValue!);
-            token.WriteTo(writer);
-        }
-        catch
-        {
-            // Si no es JSON válido, escribirlo como string
-            writer.WriteValue(stringValue);
-        }
+        // Escribir el string directamente como JSON
+        writer.WriteStringValue(value);
     }
 }

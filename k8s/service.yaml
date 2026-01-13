@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-datanath-metamodelo-dev
+  namespace: app-svc-datanath-metamodelo-dev
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: 'true'
+    service.beta.kubernetes.io/azure-load-balancer-internal-subnet: Subnet-AKS-EC-MAXPOINT
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 10.1.48.219
+  selector:
+    app: group-app-svc-datanath-metamodelo-dev
+    tier: deployment-svc-datanath-metamodelo-dev
+  ports:
+  - name: svc-datanath-metamodelo-port
+    protocol: "TCP"
+    port: 5223
+    targetPort: 5223

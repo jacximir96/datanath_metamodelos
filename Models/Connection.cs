@@ -1,33 +1,42 @@
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace DataNath.ApiMetadatos.Models;
 
 public class Connection
 {
-    [JsonProperty("id")]
+    [JsonPropertyName("id")]
     public string Id { get; set; } = string.Empty;
 
-    [JsonProperty("clientId")]
+    [JsonPropertyName("clientConfigId")]
+    public string? ClientConfigId { get; set; }
+
+    [JsonPropertyName("clientId")]
     public string ClientId { get; set; } = string.Empty;
 
-    [JsonProperty("clientName")]
+    [JsonPropertyName("clientName")]
     public string ClientName { get; set; } = string.Empty;
 
-    [JsonProperty("servidor")]
+    [JsonPropertyName("servidor")]
     public string Servidor { get; set; } = string.Empty;
 
-    [JsonProperty("puerto")]
+    [JsonPropertyName("puerto")]
     public string Puerto { get; set; } = string.Empty;
 
-    [JsonProperty("user")]
+    [JsonPropertyName("user")]
     public string User { get; set; } = string.Empty;
 
-    [JsonProperty("password")]
+    [JsonPropertyName("password")]
     public string Password { get; set; } = string.Empty;
 
-    [JsonProperty("repository")]
+    [JsonPropertyName("repository")]
     public string Repository { get; set; } = string.Empty;
 
-    [JsonProperty("adapter")]
+    [JsonPropertyName("adapter")]
     public string Adapter { get; set; } = string.Empty;
+
+    [JsonPropertyName("associatedStores")]
+    public List<string>? AssociatedStores { get; set; }
+
+    [JsonPropertyName("storeFilterField")]
+    public string? StoreFilterField { get; set; }
 }

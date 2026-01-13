@@ -2,6 +2,7 @@ using DataNath.ApiMetadatos.Configuration;
 using DataNath.ApiMetadatos.Models;
 using DataNath.ApiMetadatos.Services;
 using Microsoft.Azure.Cosmos;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -12,25 +13,38 @@ public class ConnectionRepository : IConnectionRepository
     private readonly Container _container;
     private readonly IEncryptionService _encryptionService;
     private readonly ILogger<ConnectionRepository> _logger;
+    private readonly IMemoryCache _cache;
 
     public ConnectionRepository(
         CosmosClient cosmosClient,
         IOptions<CosmosDbSettings> settings,
         IEncryptionService encryptionService,
-        ILogger<ConnectionRepository> logger)
+        ILogger<ConnectionRepository> logger,
+        IMemoryCache cache)
     {
         var cosmosDbSettings = settings.Value;
         var database = cosmosClient.GetDatabase(cosmosDbSettings.DatabaseId);
         _container = database.GetContainer(cosmosDbSettings.ContainerId);
         _encryptionService = encryptionService;
         _logger = logger;
+        _cache = cache;
     }
 
     public async Task<IEnumerable<Connection>> GetAllConnectionsAsync()
     {
+        const string cacheKey = "all_connections";
+
         try
         {
-            _logger.LogInformation("Obteniendo todas las conexiones");
+            // Intentar obtener del caché primero
+            if (_cache.TryGetValue(cacheKey, out IEnumerable<Connection>? cachedConnections) && cachedConnections != null)
+            {
+                _logger.LogInformation("✅ Conexiones obtenidas desde CACHÉ ({Count} items)", cachedConnections.Count());
+                return cachedConnections;
+            }
+
+            _logger.LogInformation("⏱️ Obteniendo conexiones desde Cosmos DB...");
+            var startTime = DateTime.UtcNow;
 
             var query = _container.GetItemQueryIterator<Connection>(
                 new QueryDefinition("SELECT * FROM c"));
@@ -43,16 +57,18 @@ public class ConnectionRepository : IConnectionRepository
                 results.AddRange(response);
             }
 
-            // Desencriptar passwords
-            foreach (var connection in results)
-            {
-                if (!string.IsNullOrEmpty(connection.Password))
-                {
-                    connection.Password = _encryptionService.Decrypt(connection.Password);
-                }
-            }
+            var elapsed = DateTime.UtcNow - startTime;
+            _logger.LogInformation("✅ Se obtuvieron {Count} conexiones desde Cosmos DB en {ElapsedMs}ms",
+                results.Count, elapsed.TotalMilliseconds);
 
-            _logger.LogInformation("Se obtuvieron {Count} conexiones", results.Count);
+            // Guardar en caché por 5 minutos
+            var cacheOptions = new MemoryCacheEntryOptions()
+                .SetAbsoluteExpiration(TimeSpan.FromMinutes(5))
+                .SetSlidingExpiration(TimeSpan.FromMinutes(2));
+
+            _cache.Set(cacheKey, results, cacheOptions);
+            _logger.LogInformation("💾 Conexiones guardadas en caché por 5 minutos");
+
             return results;
         }
         catch (Exception ex)
@@ -70,12 +86,6 @@ public class ConnectionRepository : IConnectionRepository
 
             var response = await _container.ReadItemAsync<Connection>(id, new PartitionKey(id));
             var connection = response.Resource;
-
-            // Desencriptar password
-            if (!string.IsNullOrEmpty(connection.Password))
-            {
-                connection.Password = _encryptionService.Decrypt(connection.Password);
-            }
 
             _logger.LogInformation("Conexión encontrada: {ClientName}", connection.ClientName);
             return connection;
@@ -121,12 +131,6 @@ public class ConnectionRepository : IConnectionRepository
         {
             var response = await query.ReadNextAsync();
             var connection = response.FirstOrDefault();
-
-            if (connection != null && !string.IsNullOrEmpty(connection.Password))
-            {
-                connection.Password = _encryptionService.Decrypt(connection.Password);
-            }
-
             return connection;
         }
 
@@ -171,6 +175,13 @@ public class ConnectionRepository : IConnectionRepository
         return false;
     }
 
+    private void InvalidateCache()
+    {
+        const string cacheKey = "all_connections";
+        _cache.Remove(cacheKey);
+        _logger.LogInformation("🗑️ Caché de conexiones invalidado");
+    }
+
     public async Task<Connection> CreateConnectionAsync(Connection connection)
     {
         try
@@ -196,20 +207,11 @@ public class ConnectionRepository : IConnectionRepository
                     $"y adapter='{connection.Adapter}'");
             }
 
-            // Encriptar password antes de guardar
-            if (!string.IsNullOrEmpty(connection.Password))
-            {
-                connection.Password = _encryptionService.Encrypt(connection.Password);
-            }
-
             var response = await _container.CreateItemAsync(connection, new PartitionKey(connection.Id));
             var savedConnection = response.Resource;
 
-            // Desencriptar password para retornar
-            if (!string.IsNullOrEmpty(savedConnection.Password))
-            {
-                savedConnection.Password = _encryptionService.Decrypt(savedConnection.Password);
-            }
+            // Invalidar caché después de crear
+            InvalidateCache();
 
             _logger.LogInformation("Conexión creada exitosamente con ID: {Id}", savedConnection.Id);
             return savedConnection;
@@ -253,20 +255,11 @@ public class ConnectionRepository : IConnectionRepository
                     $"y adapter='{connection.Adapter}'");
             }
 
-            // Encriptar password antes de actualizar
-            if (!string.IsNullOrEmpty(connection.Password))
-            {
-                connection.Password = _encryptionService.Encrypt(connection.Password);
-            }
-
             var response = await _container.ReplaceItemAsync(connection, id, new PartitionKey(id));
             var updatedConnection = response.Resource;
 
-            // Desencriptar password para retornar
-            if (!string.IsNullOrEmpty(updatedConnection.Password))
-            {
-                updatedConnection.Password = _encryptionService.Decrypt(updatedConnection.Password);
-            }
+            // Invalidar caché después de actualizar
+            InvalidateCache();
 
             _logger.LogInformation("Conexión actualizada exitosamente: {Id}", id);
             return updatedConnection;
@@ -293,6 +286,10 @@ public class ConnectionRepository : IConnectionRepository
         {
             _logger.LogInformation("Eliminando conexión ID: {Id}", id);
             await _container.DeleteItemAsync<Connection>(id, new PartitionKey(id));
+
+            // Invalidar caché después de eliminar
+            InvalidateCache();
+
             _logger.LogInformation("Conexión eliminada exitosamente: {Id}", id);
             return true;
         }

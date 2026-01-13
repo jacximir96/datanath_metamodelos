@@ -9,6 +9,9 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configurar caché en memoria
+builder.Services.AddMemoryCache();
+
 // Configurar CosmosDbSettings desde appsettings.json
 builder.Services.Configure<CosmosDbSettings>(
     builder.Configuration.GetSection("CosmosDb"));
@@ -29,7 +32,16 @@ builder.Services.AddSingleton<CosmosClient>(serviceProvider =>
     if (settings == null)
         throw new InvalidOperationException("CosmosDb configuration is missing");
 
-    return new CosmosClient(settings.Endpoint, settings.Key);
+    // Configurar opciones de serialización para Cosmos DB
+    var cosmosClientOptions = new CosmosClientOptions
+    {
+        SerializerOptions = new CosmosSerializationOptions
+        {
+            PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase
+        }
+    };
+
+    return new CosmosClient(settings.Endpoint, settings.Key, cosmosClientOptions);
 });
 
 // Registrar servicios
@@ -39,8 +51,10 @@ builder.Services.AddSingleton<DatabaseMetadataServiceFactory>();
 
 // Registrar repositorios
 builder.Services.AddScoped<IConnectionRepository, ConnectionRepository>();
+builder.Services.AddScoped<IClientConfigRepository, ClientConfigRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IPersistentRequirementRepository, PersistentRequirementRepository>();
+builder.Services.AddScoped<ISavedConfigurationRepository, SavedConfigurationRepository>();
 
 // Configurar autenticación JWT
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>();
@@ -67,13 +81,20 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
-// Configurar CORS - Configuración específica para Angular
+// Configurar CORS - Permite cualquier origen en puerto 4200
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("PublicApiPolicy", policy =>
     {
         policy
-            .WithOrigins("http://localhost:4200", "https://localhost:4200")
+            .SetIsOriginAllowed(origin =>
+            {
+                if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                {
+                    return uri.Port == 4200;
+                }
+                return false;
+            })
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
