@@ -53,7 +53,6 @@ builder.Services.AddSingleton<DatabaseMetadataServiceFactory>();
 builder.Services.AddScoped<IConnectionRepository, ConnectionRepository>();
 builder.Services.AddScoped<IClientConfigRepository, ClientConfigRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<IPersistentRequirementRepository, PersistentRequirementRepository>();
 builder.Services.AddScoped<ISavedConfigurationRepository, SavedConfigurationRepository>();
 
 // Configurar autenticación JWT

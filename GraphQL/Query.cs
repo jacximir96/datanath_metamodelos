@@ -192,45 +192,6 @@ public class Query
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // QUERIES DE PERSISTENT REQUIREMENT
-    // ═══════════════════════════════════════════════════════════════
-
-    [Authorize]
-    [GraphQLName("getPersistentRequirements")]
-    public async Task<PersistentRequirementsResponse> GetPersistentRequirements(
-        int skip = 0,
-        int take = 10,
-        [Service] IPersistentRequirementRepository repository = null!)
-    {
-        var requirements = await repository.GetAllPersistentRequirementsAsync();
-
-        var totalCount = requirements.Count();
-
-        // Aplicar paginación
-        var paginatedRequirements = requirements
-            .Skip(skip)
-            .Take(take)
-            .ToList();
-
-        return new PersistentRequirementsResponse
-        {
-            Items = paginatedRequirements,
-            TotalCount = totalCount,
-            Skip = skip,
-            Take = take
-        };
-    }
-
-    [Authorize]
-    [GraphQLName("getPersistentRequirementById")]
-    public async Task<PersistentRequirement?> GetPersistentRequirementById(
-        string id,
-        [Service] IPersistentRequirementRepository repository)
-    {
-        return await repository.GetPersistentRequirementByIdAsync(id);
-    }
-
-    // ═══════════════════════════════════════════════════════════════
     // QUERIES DE SAVED CONFIGURATIONS
     // ═══════════════════════════════════════════════════════════════
 
@@ -292,11 +253,3 @@ public class ConnectionsResponse
     public int PageCount => (int)Math.Ceiling((double)TotalCount / Take);
 }
 
-public class PersistentRequirementsResponse
-{
-    public List<PersistentRequirement> Items { get; set; } = new();
-    public int TotalCount { get; set; }
-    public int Skip { get; set; }
-    public int Take { get; set; }
-    public int PageCount => (int)Math.Ceiling((double)TotalCount / Take);
-}
